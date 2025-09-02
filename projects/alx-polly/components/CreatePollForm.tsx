@@ -1,117 +1,168 @@
-'''"use client";
+'use client'
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
+import { createPoll } from '@/lib/actions/polls'
+import { Plus, X } from 'lucide-react'
 
 export function CreatePollForm() {
-  const [question, setQuestion] = useState("");
-  const [options, setOptions] = useState(["", ""]);
-  const [isLoading, setIsLoading] = useState(false);
-  const router = useRouter();
-  const supabase = createClient();
+  const router = useRouter()
+  const [isPending, startTransition] = useTransition()
+  const [options, setOptions] = useState(['', ''])
+  const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState(false)
+
+  const handleAddOption = () => {
+    if (options.length < 10) {
+      setOptions([...options, ''])
+    }
+  }
+
+  const handleRemoveOption = (index: number) => {
+    if (options.length > 2) {
+      const newOptions = options.filter((_, i) => i !== index)
+      setOptions(newOptions)
+    }
+  }
 
   const handleOptionChange = (index: number, value: string) => {
-    const newOptions = [...options];
-    newOptions[index] = value;
-    setOptions(newOptions);
-  };
+    const newOptions = [...options]
+    newOptions[index] = value
+    setOptions(newOptions)
+  }
 
-  const addOption = () => {
-    setOptions([...options, ""]);
-  };
+  const handleSubmit = async (formData: FormData) => {
+    setError(null)
+    setSuccess(false)
+    
+    const title = formData.get('title') as string
+    const description = formData.get('description') as string
 
-  const removeOption = (index: number) => {
-    const newOptions = [...options];
-    newOptions.splice(index, 1);
-    setOptions(newOptions);
-  };
-
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setIsLoading(true);
-
-    if (question.trim() === "" || options.some((opt) => opt.trim() === "")) {
-      alert("Please fill out the question and all options.");
-      setIsLoading(false);
-      return;
+    // Validate options
+    const validOptions = options.filter(option => option.trim())
+    if (validOptions.length < 2) {
+      setError('At least 2 options are required')
+      return
     }
 
-    const { data: poll, error } = await supabase
-      .from("polls")
-      .insert([{ question, options }])
-      .select();
-
-    if (error) {
-      alert(error.message);
-    } else if (poll) {
-      router.push(`/poll/${poll[0].id}`);
+    const pollData = {
+      title,
+      description,
+      options: validOptions,
+      isPublic: true,
+      allowMultipleVotes: false,
+      allowAnonymousVotes: true
     }
 
-    setIsLoading(false);
-  };
-
-  const isFormValid = question.trim() !== "" && options.every((opt) => opt.trim() !== "");
+    startTransition(() => {
+      (async () => {
+        try {
+          const result = await createPoll(pollData)
+          if (result.success) {
+            setSuccess(true)
+            // Show success message for 2 seconds, then redirect
+            setTimeout(() => {
+              router.push('/polls')
+            }, 2000)
+          } else {
+            setError(result.error || 'Failed to create poll')
+          }
+        } catch (err) {
+          setError('An unexpected error occurred')
+          console.error('Error creating poll:', err)
+        }
+      })()
+    })
+  }
 
   return (
-    <Card className="w-[450px]">
-      <CardHeader>
-        <CardTitle>Create a New Poll</CardTitle>
-        <CardDescription>Fill out the details below to create your poll.</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit}>
-          <div className="grid w-full items-center gap-4">
-            <div className="flex flex-col space-y-1.5">
-              <Label htmlFor="question">Poll Question</Label>
-              <Input
-                id="question"
-                placeholder="What is your favorite color?"
-                value={question}
-                onChange={(e) => setQuestion(e.target.value)}
-              />
-            </div>
-            {options.map((option, index) => (
-              <div key={index} className="flex items-center space-x-2">
-                <Input
-                  type="text"
-                  placeholder={`Option ${index + 1}`}
-                  value={option}
-                  onChange={(e) => handleOptionChange(index, e.target.value)}
-                />
-                {options.length > 2 && (
-                  <Button variant="outline" onClick={() => removeOption(index)}>
-                    Remove
-                  </Button>
-                )}
-              </div>
-            ))}
-            <Button type="button" variant="outline" onClick={addOption}>
-              Add Option
-            </Button>
+    <form onSubmit={handleSubmit} className="space-y-6">
+      <div className="space-y-2">
+        <Label htmlFor="title">Poll Title *</Label>
+        <Input
+          id="title"
+          name="title"
+          placeholder="Enter your poll question"
+          required
+          className="w-full"
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="description">Description (Optional)</Label>
+        <Textarea
+          id="description"
+          name="description"
+          placeholder="Add more context about your poll"
+          className="w-full"
+          rows={3}
+        />
+      </div>
+
+      <div className="space-y-3">
+        <Label>Poll Options *</Label>
+        {options.map((option, index) => (
+          <div key={index} className="flex gap-2">
+            <Input
+              placeholder={`Option ${index + 1}`}
+              value={option}
+              onChange={(e) => handleOptionChange(index, e.target.value)}
+              required
+              className="flex-1"
+            />
+            {options.length > 2 && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => handleRemoveOption(index)}
+                className="px-3"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            )}
           </div>
-        </form>
-      </CardContent>
-      <CardFooter className="flex justify-end">
-        <Button
-          onClick={() => document.querySelector("form")?.requestSubmit()}
-          disabled={!isFormValid || isLoading}
-        >
-          {isLoading ? "Creating..." : "Create Poll"}
-        </Button>
-      </CardFooter>
-    </Card>
-  );
+        ))}
+        
+        {options.length < 10 && (
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handleAddOption}
+            className="w-full"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Add Option
+          </Button>
+        )}
+      </div>
+
+      {error && (
+        <div className="p-3 bg-red-50 border border-red-200 rounded-md">
+          <p className="text-red-600 text-sm">{error}</p>
+        </div>
+      )}
+
+      {success && (
+        <div className="p-3 bg-green-50 border border-green-200 rounded-md">
+          <p className="text-green-600 text-sm">Poll created successfully! Redirecting...</p>
+        </div>
+      )}
+
+      <Button
+        type="submit"
+        disabled={isPending}
+        className="w-full"
+      >
+        {isPending ? 'Creating Poll...' : 'Create Poll'}
+      </Button>
+    </form>
+  )
 }
-'''
+
+
+

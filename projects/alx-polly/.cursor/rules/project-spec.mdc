@@ -46,4 +46,4 @@ Before finalizing your response, you MUST verify the following:
 - Are Server Actions used for data mutations (forms)?
 - Is the Supabase client used for all database interactions?
 - Are shadcn/ui components used for the UI where appropriate?
-- Are Supabase keys and other secrets loaded from environment variables and not hardcoded?
+- Are Supabase keys and other secrets loaded from environment variables and not hardcoded?:wq

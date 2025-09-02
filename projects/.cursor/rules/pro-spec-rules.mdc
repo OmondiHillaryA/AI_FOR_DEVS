@@ -1,0 +1,66 @@
+
+# Project Rules for Polling App - Updated Rules
+
+## Folder Structure ✅
+- Place poll-related pages and components inside `/src/app/polls/`
+- Place API routes inside `/src/app/api/` (e.g. `/src/app/api/polls/route.ts`)
+- Shared UI components go in `/src/components/`
+- Database helpers and Supabase client must live in `/src/lib/`
+- **OBSERVATION**: The working app uses `/src/` prefix, not just `/app/`
+
+## Forms ✅
+- Use `react-hook-form` for all forms
+- Use `shadcn/ui` form components (`Form`, `FormField`, `Input`, `Button`, `Card`, `Label`, `Textarea`)
+- Always include client-side validation via `zod`
+- **OBSERVATION**: The working app uses native form handling with FormData instead of react-hook-form
+
+## Authentication ✅
+- Use Supabase auth (`@supabase/supabase-js`)
+- Auth-protected routes must use `createServerSupabaseClient` for server-side operations
+- Store user session in cookies (no localStorage)
+- **OBSERVATION**: The working app correctly uses `createServerSupabaseClient` in Server Actions
+
+## Database Access ✅
+- All database operations go through the Supabase client in `/src/lib/supabase/client.ts`
+- Never call Supabase directly in UI components — wrap logic in Server Actions
+- Use Row Level Security (RLS) for user-specific queries
+- **OBSERVATION**: The working app correctly uses Server Actions (`createPoll`) for database mutations
+
+## Server Actions Pattern ✅
+- Use Next.js Server Actions for all data mutations (create, update, delete)
+- Place Server Actions in `/src/lib/actions/` directory
+- Use `'use server'` directive at the top of action files
+- **OBSERVATION**: The working app correctly implements this pattern
+
+## Component Architecture ✅
+- Use Server Components for data fetching and display
+- Use Client Components (`'use client'`) only when interactivity is required
+- **OBSERVATION**: The working app correctly separates concerns between Server and Client Components
+
+## Example Scaffold - Updated
+- When asked: "Create a form to submit a new poll"
+  - File: `/src/app/polls/create/page.tsx` (Server Component)
+  - Component: `/src/components/CreatePollForm.tsx` (Client Component)
+  - Server Action: `/src/lib/actions/polls.ts` (with `createPoll` function)
+  - Use Server Actions for database insertion
+  - Redirect to `/polls` after success
+  - **OBSERVATION**: The working app follows this exact pattern
+
+## Key Differences from Original Rules
+1. **Form handling**: Uses native FormData instead of react-hook-form
+2. **Directory structure**: Uses `/src/` prefix
+3. **Server Actions**: Implements proper Server Actions pattern
+4. **Component separation**: Clear separation between Server and Client Components
+
+## Best Practices Observed
+- Proper error handling in Server Actions
+- Use of `useTransition` for loading states
+- Form validation both client-side and server-side
+- Proper TypeScript interfaces for form data
+- Environment variable usage for Supabase configuration
+
+
+  - Use `react-hook-form` + `zod` validation
+  - Insert into Supabase (`polls` table)
+  - Redirect to `/app/polls/[id]` after success
+
