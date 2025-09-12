@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState, useTransition, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { createPoll } from '@/lib/actions/polls'
 
@@ -13,23 +13,25 @@ export function CreatePollForm() {
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
 
-  const handleAddOption = () => {
+  const handleAddOption = useCallback(() => {
     if (options.length < 10) {
-      setOptions([...options, ''])
+      setOptions(prev => [...prev, ''])
     }
-  }
+  }, [options.length])
 
-  const handleRemoveOption = (index: number) => {
+  const handleRemoveOption = useCallback((index: number) => {
     if (options.length > 2) {
-      setOptions(options.filter((_, i) => i !== index))
+      setOptions(prev => prev.filter((_, i) => i !== index))
     }
-  }
+  }, [options.length])
 
-  const handleOptionChange = (index: number, value: string) => {
-    const newOptions = [...options]
-    newOptions[index] = value
-    setOptions(newOptions)
-  }
+  const handleOptionChange = useCallback((index: number, value: string) => {
+    setOptions(prev => {
+      const newOptions = [...prev]
+      newOptions[index] = value
+      return newOptions
+    })
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -46,26 +48,37 @@ export function CreatePollForm() {
     }
 
     startTransition(async () => {
-      const result = await createPoll({
-        title,
-        description,
-        options: validOptions,
-        isPublic: true,
-        allowMultipleVotes: false,
-        allowAnonymousVotes: true
-      })
-      
-      if (result.success) {
-        setSuccess(true)
-        setTitle('')
-        setDescription('')
-        setOptions(['', ''])
-        setTimeout(() => setSuccess(false), 3000)
-      } else {
-        setError(result.error || 'Failed to create poll')
+      try {
+        const result = await createPoll({
+          title,
+          description,
+          options: validOptions,
+          isPublic: true,
+          allowMultipleVotes: false,
+          allowAnonymousVotes: true
+        })
+        
+        if (result.success) {
+          setSuccess(true)
+          setTitle('')
+          setDescription('')
+          setOptions(['', ''])
+        } else {
+          setError(result.error || 'Failed to create poll')
+        }
+      } catch (error) {
+        setError('Network error occurred')
       }
     })
   }
+
+  // Auto-hide success message after 3 seconds
+  useEffect(() => {
+    if (success) {
+      const timer = setTimeout(() => setSuccess(false), 3000)
+      return () => clearTimeout(timer)
+    }
+  }, [success])
 
   return (
     <div className="bg-white p-8 rounded-lg shadow-md">
