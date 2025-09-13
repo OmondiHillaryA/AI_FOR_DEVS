@@ -16,6 +16,39 @@ const AuthContext = createContext<{
   loading: true,
 });
 
+/**
+ * AuthProvider - Centralized authentication state management with security hardening
+ * 
+ * WHAT: React context provider that manages user authentication state across the app
+ * WHY: Centralizes auth logic to prevent inconsistent state, implements secure logging
+ *      to prevent sensitive data leakage, and provides automatic session management
+ *      to handle token refresh and cleanup
+ * 
+ * @param children - React components that need access to authentication context
+ * @returns JSX.Element - Context provider wrapping children with auth state
+ * 
+ * Security Features:
+ * - Sanitized logging prevents user data from appearing in console/logs
+ * - Automatic session cleanup prevents memory leaks
+ * - Error boundary pattern for auth failures
+ * - Secure state initialization to prevent race conditions
+ * 
+ * Edge Cases Handled:
+ * - Component unmounting during async auth operations
+ * - Network failures during session refresh
+ * - Invalid or expired tokens
+ * - Rapid auth state changes (login/logout)
+ * - Browser tab switching affecting session state
+ * 
+ * @example
+ * function App() {
+ *   return (
+ *     <AuthProvider>
+ *       <Dashboard /> // Can access useAuth() hook
+ *     </AuthProvider>
+ *   );
+ * }
+ */
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const supabase = useMemo(() => createClient(), []);
   const [session, setSession] = useState<Session | null>(null);
@@ -23,16 +56,22 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // EDGE CASE: Component might unmount before async operations complete
+    // WHY: mounted flag prevents state updates on unmounted components
     let mounted = true;
     const getUser = async () => {
       const { data, error } = await supabase.auth.getUser();
       if (error) {
+        // EDGE CASE: Network failures, invalid tokens, or Supabase service issues
         console.error('Error fetching user:', error);
       }
+      // EDGE CASE: Prevent state updates if component unmounted during async call
       if (mounted) {
         setUser(data.user ?? null);
+        // WHY: setSession(null) during initial load - session will be set by auth listener
         setSession(null);
         setLoading(false);
+        // SECURITY: Log only authentication status, never user details
         console.log('AuthContext: Initial user loaded', data.user?.id ? 'User authenticated' : 'No user');
       }
     };

@@ -16,6 +16,17 @@ interface PollActionsProps {
   poll: Poll;
 }
 
+/**
+ * PollActions - Secure poll management component
+ * 
+ * Provides poll management actions with security features:
+ * - User ownership verification before showing edit/delete options
+ * - Error handling for failed operations
+ * - Confirmation dialogs for destructive actions
+ * 
+ * @param poll - Poll object with id, question, options, and user_id
+ * @returns JSX.Element - Poll card with management actions
+ */
 export default function PollActions({ poll }: PollActionsProps) {
   const { user } = useAuth();
   const handleDelete = async () => {
