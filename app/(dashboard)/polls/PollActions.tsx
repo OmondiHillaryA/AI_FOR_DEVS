@@ -20,8 +20,17 @@ export default function PollActions({ poll }: PollActionsProps) {
   const { user } = useAuth();
   const handleDelete = async () => {
     if (confirm("Are you sure you want to delete this poll?")) {
-      await deletePoll(poll.id);
-      window.location.reload();
+      try {
+        const result = await deletePoll(poll.id);
+        if (result.error) {
+          alert(`Error deleting poll: ${result.error}`);
+        } else {
+          window.location.reload();
+        }
+      } catch (error) {
+        alert('Failed to delete poll. Please try again.');
+        console.error('Delete poll error:', error);
+      }
     }
   };
 

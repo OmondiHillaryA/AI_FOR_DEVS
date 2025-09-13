@@ -17,10 +17,24 @@ export default function RegisterPage() {
     setLoading(true);
     setError(null);
     const formData = new FormData(event.currentTarget);
-    const name = formData.get('name') as string;
-    const email = formData.get('email') as string;
-    const password = formData.get('password') as string;
-    const confirmPassword = formData.get('confirmPassword') as string;
+    const name = formData.get('name');
+    const email = formData.get('email');
+    const password = formData.get('password');
+    const confirmPassword = formData.get('confirmPassword');
+    
+    // Validate form data
+    if (!name || !email || !password || !confirmPassword) {
+      setError('All fields are required');
+      setLoading(false);
+      return;
+    }
+    
+    if (typeof name !== 'string' || typeof email !== 'string' || 
+        typeof password !== 'string' || typeof confirmPassword !== 'string') {
+      setError('Invalid form data');
+      setLoading(false);
+      return;
+    }
 
     if (password !== confirmPassword) {
       setError('Passwords do not match');
