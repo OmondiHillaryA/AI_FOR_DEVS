@@ -64,6 +64,12 @@ export default function PollCreateForm() {
           Add Option
         </Button>
       </div>
+
+      <div>
+        <Label htmlFor="expires_at">Expiration Date (Optional)</Label>
+        <Input name="expires_at" id="expires_at" type="datetime-local" />
+      </div>
+
       {error && <div className="text-red-500">{error}</div>}
       {success && <div className="text-green-600">Poll created! Redirecting...</div>}
       <Button type="submit">Create Poll</Button>

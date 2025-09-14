@@ -18,7 +18,7 @@ interface VulnerableShareProps {
   pollTitle: string;
 }
 
-export default function VulnerableShare({
+export default function SharePoll({
   pollId,
   pollTitle,
 }: VulnerableShareProps) {
