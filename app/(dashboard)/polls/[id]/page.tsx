@@ -1,7 +1,53 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { getPollById, submitVote, getPollAnalytics } from '@/app/lib/actions/poll-actions';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Poll } from '@/app/lib/types';
+
+// Share component
+function SharePoll({ pollId, pollTitle }: { pollId: string; pollTitle: string }) {
+  const shareUrl = typeof window !== 'undefined' ? window.location.href : '';
+  
+  const copyToClipboard = () => {
+    navigator.clipboard.writeText(shareUrl);
+  };
+  
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center space-x-2">
+        <input 
+          type="text" 
+          value={shareUrl} 
+          readOnly 
+          className="flex-1 p-2 border rounded text-sm"
+        />
+        <Button onClick={copyToClipboard} size="sm">
+          Copy
+        </Button>
+      </div>
+      <div className="flex space-x-2">
+        <Button 
+          variant="outline" 
+          size="sm"
+          onClick={() => window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(pollTitle)}&url=${encodeURIComponent(shareUrl)}`)}
+        >
+          Twitter
+        </Button>
+        <Button 
+          variant="outline" 
+          size="sm"
+          onClick={() => window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`)}
+        >
+          Facebook
+        </Button>
+      </div>
+    </div>
+  );
+}
 
 interface AnalyticsData {
   voteCounts: { option: string; count: number }[];

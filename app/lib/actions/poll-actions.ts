@@ -38,6 +38,7 @@ export async function createPoll(formData: FormData) {
 
   const question = formData.get("question");
   const options = formData.getAll("options").filter(Boolean);
+  const expires_at = formData.get("expires_at");
   
   // EDGE CASE: FormData.get() can return File objects when file inputs are present
   // EDGE CASE: FormData.getAll() can return mixed types (string | File)
@@ -70,13 +71,17 @@ export async function createPoll(formData: FormData) {
     return { error: "You must be logged in to create a poll." };
   }
 
-  const { error } = await supabase.from("polls").insert([
-    {
-      user_id: user.id,
-      question: sanitizedQuestion,
-      options: sanitizedOptions,
-    },
-  ]);
+  const pollData: any = {
+    user_id: user.id,
+    question: sanitizedQuestion,
+    options: sanitizedOptions,
+  };
+
+  if (expires_at && typeof expires_at === 'string') {
+    pollData.expires_at = new Date(expires_at).toISOString();
+  }
+
+  const { error } = await supabase.from("polls").insert([pollData]);
 
   if (error) {
     return { error: error.message };
@@ -140,8 +145,16 @@ export async function submitVote(pollId: string, optionIndex: number) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // Optionally require login to vote
-  // if (!user) return { error: 'You must be logged in to vote.' };
+  // Check if poll is expired
+  const { data: poll } = await supabase
+    .from('polls')
+    .select('expires_at')
+    .eq('id', pollId)
+    .single();
+    
+  if (poll?.expires_at && new Date(poll.expires_at) < new Date()) {
+    return { error: 'This poll has expired and is no longer accepting votes.' };
+  }
 
   // For logged-in users, prevent duplicate votes
   if (user) {
@@ -152,7 +165,7 @@ export async function submitVote(pollId: string, optionIndex: number) {
       .eq("user_id", user.id)
       .single();
 
-    if (voteError && voteError.code !== 'PGRST116') { // PGRST116: "exact one row expected, but 0 rows were found"
+    if (voteError && voteError.code !== 'PGRST116') {
         return { error: voteError.message };
     }
     if (existingVote) {

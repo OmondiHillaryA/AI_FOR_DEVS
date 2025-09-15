@@ -10,6 +10,8 @@ interface Poll {
   question: string;
   options: any[];
   user_id: string;
+  expires_at?: string;
+  created_at: string;
 }
 
 interface PollActionsProps {
@@ -55,6 +57,15 @@ export default function PollActions({ poll }: PollActionsProps) {
                 {poll.question}
               </h2>
               <p className="text-slate-500">{poll.options.length} options</p>
+              {poll.expires_at && (
+                <p className={`text-sm mt-1 ${
+                  new Date(poll.expires_at) < new Date() 
+                    ? 'text-red-600 font-medium' 
+                    : 'text-orange-600'
+                }`}>
+                  {new Date(poll.expires_at) < new Date() ? '🔒 Expired' : '⏰ Expires'}: {new Date(poll.expires_at).toLocaleDateString()}
+                </p>
+              )}
             </div>
           </div>
         </div>
