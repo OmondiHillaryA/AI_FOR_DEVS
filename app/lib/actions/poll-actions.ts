@@ -2,87 +2,72 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { CreatePollData, ValidationResult } from "../types";
 
-/**
- * Creates a new poll with comprehensive security validation
- * 
- * WHAT: Processes form data to create a poll record in the database
- * WHY: Centralizes poll creation logic with security-first approach to prevent
- *      unauthorized poll creation, data corruption, and injection attacks
- * 
- * @param formData - Form data containing poll question and options array
- * @returns Promise<{error: string | null}> - Success (null error) or failure message
- * 
- * Security Rationale:
- * - Input validation prevents malformed data from reaching the database
- * - User authentication ensures only logged-in users can create polls
- * - Type checking prevents File objects or null values from being processed
- * - Sanitization removes potential XSS payloads from user input
- * 
- * Edge Cases Handled:
- * - FormData.get() returning File objects instead of strings
- * - Empty or whitespace-only inputs
- * - Duplicate or invalid options
- * - User session expiration during form submission
- * 
- * @example
- * const formData = new FormData();
- * formData.append('question', 'What is your favorite color?');
- * formData.append('options', 'Red');
- * formData.append('options', 'Blue');
- * const result = await createPoll(formData);
- * if (result.error) console.error('Creation failed:', result.error);
- */
-export async function createPoll(formData: FormData) {
-  const supabase = await createClient();
+interface PollRecord {
+  user_id: string;
+  question: string;
+  options: string[];
+  expires_at?: string;
+  is_public: boolean;
+}
 
+function validatePollData(formData: FormData): ValidationResult<CreatePollData> {
   const question = formData.get("question");
   const options = formData.getAll("options").filter(Boolean);
   const expires_at = formData.get("expires_at");
+  const is_public = formData.get("is_public");
   
-  // EDGE CASE: FormData.get() can return File objects when file inputs are present
-  // EDGE CASE: FormData.getAll() can return mixed types (string | File)
-  // WHY: Type validation prevents runtime errors and ensures safe string operations
   if (typeof question !== 'string' || !Array.isArray(options)) {
     return { error: "Invalid form data." };
   }
   
-  // WHY: Sanitization prevents XSS attacks and normalizes user input
-  // EDGE CASE: Users may submit only whitespace or mixed content types
   const sanitizedQuestion = question.trim();
-  const sanitizedOptions = options.map(opt => 
-    // EDGE CASE: Handle File objects or other non-string types gracefully
-    typeof opt === 'string' ? opt.trim() : ''
-  ).filter(Boolean); // EDGE CASE: Remove empty strings that result from whitespace-only inputs
+  const sanitizedOptions = options
+    .map(opt => typeof opt === 'string' ? opt.trim() : '')
+    .filter(Boolean);
 
   if (!sanitizedQuestion || sanitizedOptions.length < 2) {
     return { error: "Please provide a question and at least two options." };
   }
 
-  // Get user from session
-  const {
-    data: { user },
-    error: userError,
-  } = await supabase.auth.getUser();
-  if (userError) {
-    return { error: userError.message };
+  const data: CreatePollData = {
+    question: sanitizedQuestion,
+    options: sanitizedOptions,
+    is_public: is_public === 'true',
+  };
+
+  if (expires_at && typeof expires_at === 'string' && expires_at.trim()) {
+    const date = new Date(expires_at);
+    if (isNaN(date.getTime()) || date <= new Date()) {
+      return { error: "Invalid expiration date." };
+    }
+    data.expires_at = date.toISOString();
   }
-  if (!user) {
+
+  return { data };
+}
+
+export async function createPoll(formData: FormData) {
+  const validation = validatePollData(formData);
+  if (validation.error) {
+    return { error: validation.error };
+  }
+
+  const supabase = await createClient();
+  const { data: { user }, error: userError } = await supabase.auth.getUser();
+  
+  if (userError || !user) {
     return { error: "You must be logged in to create a poll." };
   }
 
-  const pollData: any = {
+  const pollRecord: PollRecord = {
     user_id: user.id,
-    question: sanitizedQuestion,
-    options: sanitizedOptions,
+    is_public: validation.data.is_public ?? true,
+    ...validation.data,
   };
 
-  if (expires_at && typeof expires_at === 'string') {
-    pollData.expires_at = new Date(expires_at).toISOString();
-  }
-
-  const { error } = await supabase.from("polls").insert([pollData]);
-
+  const { error } = await supabase.from("polls").insert([pollRecord]);
   if (error) {
     return { error: error.message };
   }
@@ -92,34 +77,28 @@ export async function createPoll(formData: FormData) {
 }
 
 /**
- * Retrieves all polls belonging to the authenticated user
+ * Retrieves polls for the authenticated user with visibility filtering
  * 
- * @returns Promise<{polls: Poll[], error: string | null}> - User's polls or error
- * 
- * Security Features:
- * - User authentication verification
- * - Returns only user's own polls (data isolation)
- * 
- * @example
- * const {polls, error} = await getUserPolls();
- * if (error) {
- *   console.error('Failed to fetch polls:', error);
- * } else {
- *   console.log('User has', polls.length, 'polls');
- * }
+ * @param includePrivate - Whether to include private polls (default: true for own polls)
+ * @returns Promise<{polls: Poll[], error: string | null}> - Filtered polls or error
  */
-export async function getUserPolls() {
+export async function getUserPolls(includePrivate: boolean = true) {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return { polls: [], error: "Not authenticated" };
 
-  const { data, error } = await supabase
+  let query = supabase
     .from("polls")
     .select("*")
-    .eq("user_id", user.id)
-    .order("created_at", { ascending: false });
+    .eq("user_id", user.id);
+
+  if (!includePrivate) {
+    query = query.eq("is_public", true);
+  }
+
+  const { data, error } = await query.order("created_at", { ascending: false });
 
   if (error) return { polls: [], error: error.message };
   return { polls: data ?? [], error: null };

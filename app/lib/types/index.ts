@@ -79,6 +79,24 @@ export interface CreatePollFormData {
 }
 
 /**
+ * CreatePollData interface for validated poll creation
+ */
+export interface CreatePollData {
+  question: string;
+  options: string[];
+  expires_at?: string;
+  is_public?: boolean;
+}
+
+/**
+ * ValidationResult interface for input validation
+ */
+export interface ValidationResult<T> {
+  data?: T;
+  error?: string;
+}
+
+/**
  * LoginFormData interface for secure user authentication
  * 
  * WHAT: Type definition for login form data structure
