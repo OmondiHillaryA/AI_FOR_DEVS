@@ -1,15 +1,36 @@
-# my-agent
+# AI Code Review Agent
 
-To install dependencies:
+An intelligent code review agent powered by Google's Gemini AI that analyzes git changes, generates commit messages, and creates documentation.
 
+## Features
+
+- **Code Review**: Analyzes git diffs and provides detailed code review feedback
+- **Commit Message Generation**: Creates conventional commit messages based on file changes
+- **Markdown Generation**: Generates documentation files with specified content
+
+## Setup
+
+1. Install dependencies:
 ```bash
 bun install
 ```
 
-To run:
-
+2. Set your Google AI API key:
 ```bash
-bun run index.ts
+set GOOGLE_GENERATIVE_AI_API_KEY=your_api_key_here
 ```
 
-This project was created using `bun init` in bun v1.2.22. [Bun](https://bun.com) is a fast all-in-one JavaScript runtime.
+## Usage
+
+Run the agent:
+```bash
+bun run start
+```
+
+The agent will review code changes in the current directory and provide feedback.
+
+## Tools
+
+- `getFileChangesInDirectoryTool`: Analyzes git diffs in a directory
+- `generateCommitMessageTool`: Creates conventional commit messages
+- `generateMarkdownFileTool`: Generates markdown documentation files
