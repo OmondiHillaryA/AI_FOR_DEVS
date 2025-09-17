@@ -7,6 +7,7 @@ An intelligent code review agent powered by Google's Gemini AI that analyzes git
 - **Code Review**: Analyzes git diffs and provides detailed code review feedback
 - **Commit Message Generation**: Creates conventional commit messages based on file changes
 - **Markdown Generation**: Generates documentation files with specified content
+- **Code Quality Metrics**: Analyzes complexity, maintainability, and provides quality scores with recommendations
 
 ## Setup
 
@@ -34,3 +35,4 @@ The agent will review code changes in the current directory and provide feedback
 - `getFileChangesInDirectoryTool`: Analyzes git diffs in a directory
 - `generateCommitMessageTool`: Creates conventional commit messages
 - `generateMarkdownFileTool`: Generates markdown documentation files
+- `codeQualityMetricsTool`: Analyzes code quality metrics with security-first approach

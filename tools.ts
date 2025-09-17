@@ -2,6 +2,9 @@ import { tool } from "ai";
 import { simpleGit } from "simple-git";
 import { z } from "zod";
 import { writeFileSync } from "fs";
+import { calculateMetrics } from "./src/metrics/calculator";
+import { MetricsCache } from "./src/metrics/cache";
+import { SecurityError } from "./src/metrics/types";
 
 const excludeFiles = ["dist", "bun.lock"];
 
@@ -66,4 +69,62 @@ export const generateMarkdownFileTool = tool({
   description: "Creates a markdown file with specified title and content",
   inputSchema: markdownSchema,
   execute: generateMarkdownFile,
+});
+
+const metricsSchema = z.object({
+  path: z.string().min(1).max(500).describe("File or directory path to analyze"),
+  recursive: z.boolean().default(false).describe("Analyze subdirectories recursively"),
+  metrics: z.array(z.enum(["complexity", "maintainability", "all"])).default(["all"]).describe("Specific metrics to calculate")
+});
+
+const metricsCache = new MetricsCache();
+
+async function analyzeCodeQuality({ path, recursive, metrics }: z.infer<typeof metricsSchema>) {
+  const startTime = Date.now();
+  
+  try {
+    const result = await metricsCache.getOrCalculate(
+      path, 
+      () => calculateMetrics(path)
+    );
+    
+    const analysisTime = Date.now() - startTime;
+    const cacheStats = metricsCache.getStats();
+    
+    return {
+      success: true,
+      metrics: result,
+      performance: {
+        analysisTimeMs: analysisTime,
+        cacheHitRate: cacheStats.hitRate,
+        cacheSize: cacheStats.size
+      },
+      timestamp: new Date().toISOString()
+    };
+    
+  } catch (error) {
+    const analysisTime = Date.now() - startTime;
+    
+    if (error instanceof SecurityError) {
+      return { 
+        success: false, 
+        error: `Security violation: ${error.message}`,
+        errorType: 'SECURITY_ERROR',
+        analysisTimeMs: analysisTime
+      };
+    }
+    
+    return { 
+      success: false, 
+      error: `Analysis failed: ${error.message}`,
+      errorType: 'ANALYSIS_ERROR',
+      analysisTimeMs: analysisTime
+    };
+  }
+}
+
+export const codeQualityMetricsTool = tool({
+  description: "Analyzes code quality metrics including complexity, maintainability, and provides recommendations",
+  inputSchema: metricsSchema,
+  execute: analyzeCodeQuality,
 });
